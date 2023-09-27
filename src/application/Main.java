@@ -3,73 +3,69 @@ package application;
 import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-
-import javafx.collections.ObservableList;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.print.PrinterJob;
-import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.ColorPicker;
-import javafx.scene.control.Label;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.PasswordField;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundImage;
-import javafx.scene.layout.BackgroundPosition;
-import javafx.scene.layout.BackgroundRepeat;
-import javafx.scene.layout.BackgroundSize;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
 import javafx.scene.web.WebEngine;
-import javafx.scene.web.WebHistory;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
-import javafx.util.Callback;
 
 public class Main extends Application {
 	
 	private TextField textField = new TextField();
-	private WebView webView = new WebView();
-    private  WebEngine webEngine = webView.getEngine();
+    private double zoom = 1;
+    
+    TabPane tabpane = new TabPane();
+    TableView<History> table=new TableView<>();
+    
+    MyTab selectedTab = new MyTab();
+    WebView  webView = selectedTab.getWebview();
+    WebEngine webEngine = webView.getEngine();
 	
-
 	@Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("J Browser");
         //Create BorderPane
         BorderPane root = new BorderPane();
                 
-     // Create navigation buttons
+     // Create buttons
         Image img1 = new Image("/img/back.png");
 	    ImageView backview = new ImageView(img1);
-	    backview.setFitHeight(20);
-	    backview.setFitWidth(20);
+	    backview.setFitHeight(18);
+	    backview.setFitWidth(18);
 	    Image img2 = new Image("/img/forward.png");
 	    ImageView forview = new ImageView(img2);
-	    forview.setFitHeight(20);
-	    forview.setFitWidth(20);
+	    forview.setFitHeight(18);
+	    forview.setFitWidth(18);
 	    Image img3 = new Image("/img/reload.png");
 	    ImageView reloadview = new ImageView(img3);
-	    reloadview.setFitHeight(20);
-	    reloadview.setFitWidth(20);
+	    reloadview.setFitHeight(18);
+	    reloadview.setFitWidth(18);
+        Image img4 = new Image("/img/bookmark.png");
+	    ImageView bookmarkview = new ImageView(img4);
+	    bookmarkview.setFitHeight(18);
+	    bookmarkview.setFitWidth(18);
+	    
+	    Image img5 = new Image("/img/zoomin.png");
+	    ImageView zoominview = new ImageView(img5);
+	    zoominview.setFitHeight(18);
+	    zoominview.setFitWidth(18);
+	    
+	    Image img6 = new Image("/img/zoomout.png");
+	    ImageView zoomoutview = new ImageView(img6);
+	    zoomoutview.setFitHeight(18);
+	    zoomoutview.setFitWidth(18);
 	    
         Button backButton = new Button();
         backButton.setGraphic(backview);
@@ -82,42 +78,127 @@ public class Main extends Application {
         refreshButton.setOnAction(e -> webEngine.reload());
         Button goButton = new Button("Go");
         goButton.setOnAction(e -> loadWeb(textField.getText()));
-
-     // Build top bar for navigation
-        HBox topBar = new HBox();
-        topBar.getChildren().addAll(backButton, forwardButton, refreshButton, textField, goButton);
         
-        // Create a BorderPane to organize the layout
-        root.setTop(topBar);
+        
+        //Add zoom function
+        Button zoomin = new Button();
+        zoomin.setGraphic(zoominview);
+        zoomin.setOnAction(e -> zoomIn());
+        Button zoomout = new Button();
+        zoomout.setGraphic(zoomoutview);
+        zoomout.setOnAction(e -> zoomOut());
+        
+        //Add Book mark button
+        Button bookmarkButton = new Button();
+        bookmarkButton.setGraphic(bookmarkview);
+        bookmarkButton.setOnAction(e -> webEngine.getHistory().go(-1));
+        
+        
+        //Add History Button
+        Button historyButton =new Button("History");
+        
+        HistoryTable();
+        
+		historyButton.setOnAction(event -> {
+			Stage historyStage = new Stage();
+			VBox pane = new VBox();
+			historyStage.setTitle("History");
+			pane.getChildren().add(table);
+			Scene scene = new Scene(pane, 500, 500);
+			historyStage.setScene(scene);
+			historyStage.show();
+
+		});
+        
+        //Add New Tab Button
+        Button newTabButton = new Button("+");
+        newTabButton.setOnAction(e -> createTab());
+        
+
+//        Build top bar for button and TextField
+        HBox topBar = new HBox();
+        textField.setPrefWidth(500); 
+        textField.setPrefHeight(30);
+        
+//       Add an event listener to the textField for typing "Enter" on keyboard.
+        textField.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                loadWeb(textField.getText());
+            }
+        });
+        
+        VBox top = new VBox();
+        topBar.getChildren().addAll(backButton, forwardButton, refreshButton, textField ,goButton,newTabButton,zoomin,zoomout,bookmarkButton,historyButton);
+        top.getChildren().add(topBar);
+        tabpane.getTabs().add(selectedTab);
+        top.getChildren().add(tabpane);
+        
+        tabpane.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<Tab>() {	
+			@Override
+			public void changed(ObservableValue<? extends Tab> observable, Tab oldtab, Tab newtab) {
+				System.out.print("tab changed");
+				webView = ((MyTab) newtab).getWebview();
+				webEngine = webView.getEngine();
+				selectedTab = (MyTab) newtab;
+			}
+		});
+        
+        
+        root.setTop(top);
         webEngine.load("https://www.google.com");
         root.setCenter(webView);
         
-     // Add a listener to update the URL in the TextField when the WebView navigates
-        webEngine.locationProperty().addListener(new ChangeListener<String>() {
-            @Override
-            public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
-            	textField.setText(newValue);
-            }
-        });
-
         // Create a scene with the BorderPane
         Scene scene = new Scene(root, 800, 600);
 
         // Set the scene for the stage
         primaryStage.setScene(scene);
-        // Show the stage
         primaryStage.show();
 
 
     }
 
     
-    private void loadWeb(String url) {
+    private void createTab() {
+    	MyTab tab = new MyTab();
+    	tabpane.getTabs().add(tab);
+    	System.out.println("New Tab");
+    	tab.getWebview().getEngine().load("http://google.com");
+//    	tab.setOnSelectionChanged(e -> {
+//    		if (tab.isSelected()) {
+//    			selectedTab = tab;
+//    		}
+//    	});
+    	tabpane.getSelectionModel().select(tab);
+	}
+
+
+	private void loadWeb(String url) {
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             url= "http://" +url;
         }
         webEngine.load(url);
+        History history =new History(url);
+        table.getItems().add(history);
     }
+    
+	
+    public void zoomIn() {
+    	zoom +=0.2;
+    	webView.setZoom(zoom);
+    }
+    public void zoomOut() {
+    	zoom -=0.2;
+    	webView.setZoom(zoom);
+    }
+    
+    private void HistoryTable() {
+		TableColumn<History, String> urlColumn = new TableColumn<>("URL");
+		urlColumn.setCellValueFactory(new PropertyValueFactory<>("Url"));
+		table.getColumns().add(urlColumn);
+		
+	}
+    
     
     public static void main(String[] args) {
         launch(args);
